@@ -36,9 +36,19 @@ public class GitLabSearch {
 
 		this.url = url;
 
+		check("url", url);
+		check("token", token);
+
 		gitLabApi = new GitLabApi(url, token);
 		gitLabApi.setIgnoreCertificateErrors(true);
 		gitLabApi.setRequestTimeout(null, 1000 * timeoutSeconds);
+	}
+
+	private void check(String name, String input) {
+
+		if(input == null || input.trim().equals("")) {
+			throw new IllegalStateException(name + " cannot be null or empty");
+		}
 	}
 
 	private void print(String format, Object... args) {
@@ -102,9 +112,7 @@ public class GitLabSearch {
 
 	private List<SearchResult> search(List<Project> projects, String query) throws Exception {
 
-		if(query == null || query.trim().equals("")) {
-			throw new IllegalStateException("query cannot be null or empty");
-		}
+		check("query", query);
 
 		if(projects.isEmpty()) {
 			print(true, "No projects found, nothing to search : " + query);

@@ -1,18 +1,24 @@
 package com.kiwionly;
 
 import static org.fusesource.jansi.Ansi.ansi;
-import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.List;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
 
 import com.kiwionly.GitLabSearch.SearchResult;
+import org.junit.jupiter.api.Test;
 
 class GitLabSearchTest {
 
 	@Test
-	public void testSearch() throws Exception {
+	public void testInitialFail() {
+		Assertions.assertThrows(IllegalStateException.class,
+				() -> new GitLabSearch("", "", 30)
+		);
+	}
+
+	public static void main(String[] args) throws Exception {
 		
 		String url = ""; // your domain url
 		String token = ""; // your gitlab token
@@ -37,9 +43,6 @@ class GitLabSearchTest {
 
 			System.out.println();
 		}
-		
-		assertTrue(true);
-		
 	}
 	
 	public static String getHighlightedData(String data, String query) {
