@@ -3,7 +3,7 @@ plugins {
     id 'java'
 }
 
-group = 'com.kiwionly'
+group = 'io.github.kiwionly'
 version = '1.0.0'
 
 repositories {

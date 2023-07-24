@@ -1,5 +1,5 @@
 
-package com.kiwionly;
+package io.github.kiwionly;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,6 +42,8 @@ public class GitLabSearch {
 		gitLabApi = new GitLabApi(url, token);
 		gitLabApi.setIgnoreCertificateErrors(true);
 		gitLabApi.setRequestTimeout(null, 1000 * timeoutSeconds);
+
+		print("api version : %s", gitLabApi.getApiVersion());
 	}
 
 	private void check(String name, String input) {
@@ -212,7 +214,6 @@ public class GitLabSearch {
 	}
 
 	public static class SearchResult {
-
 		private final String name;
 		private final String url;
 		private final String data;
