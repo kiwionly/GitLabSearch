@@ -175,7 +175,7 @@ public class GitLabSearch {
 			}));
 		}
 
-		print("Search %d projects ...\n", projects.size());
+		print("Searching in %d projects ...\n", projects.size());
 
 		print(pattern, "Project", "took (ms)");
 		print(pattern, "-------", "---------");
