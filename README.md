@@ -1,13 +1,19 @@
 # GitLabSearch
 Simple gitlab client that could search across gitlab projects content.
 
-import as gradle 
+Add dependency for this project: 
 
 ```
-implementation 'com.kiwionly:gitlab-search:1.0.0
+implementation 'org.gitlab4j:gitlab4j-api:5.3.0' 
 ```
 
-Load dependency for sample below :
+import this library : 
+
+```
+implementation 'io.github.kiwionly:gitlab-search:1.0.0
+```
+
+You could run the sample in the GitLabSearchTest.java, but it needs dependency as below: 
 
 ```
 implementation 'org.fusesource.jansi:jansi:2.4.0'
