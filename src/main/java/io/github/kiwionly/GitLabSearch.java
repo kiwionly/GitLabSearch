@@ -184,11 +184,15 @@ public class GitLabSearch {
 
 		List<SearchBlob> result = new ArrayList<>();
 
+		long start = System.currentTimeMillis();
+
 		for (Future<List<SearchBlob>> future : futureList) {
 			result.addAll(future.get());
 		}
 
-		print("\n");
+		long end = System.currentTimeMillis() - start;
+
+		print("\nDone search for projects, total took %dms\n", end);
 
 		List<SearchResult> resultList = new ArrayList<>();
 

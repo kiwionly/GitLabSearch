@@ -1,16 +1,20 @@
 # GitLabSearch
-Simple gitlab client that could search across gitlab projects content.
+Simple java gitlab client that could search across gitlab projects content.
 
-Add dependency for this project: 
-
-```
-implementation 'org.gitlab4j:gitlab4j-api:5.3.0' 
-```
-
-import this library : 
+Add Maven dependency for this project: 
 
 ```
-implementation 'io.github.kiwionly:gitlab-search:1.0.0
+<dependency>
+    <groupId>io.github.kiwionly</groupId>
+    <artifactId>gitlab-search</artifactId>
+    <version>1.0.0</version>
+</dependency>
+```
+
+For gradle :
+
+```
+implementation 'io.github.kiwionly:gitlab-search:1.0.0'
 ```
 
 You could run the sample in the GitLabSearchTest.java, but it needs dependency as below: 
@@ -38,6 +42,7 @@ List<SearchResult> list = searcher.searchWithKeyword("myproject", query);
 
 System.out.printf("Found %s results :\n\n", ansi().fgBrightBlue().a(list.size()).reset());
 
+// print search result
 for (SearchResult res : list) {
 	System.out.printf("project : %s\n", ansi().fgMagenta().a(res.getName()).reset());
 	System.out.printf("url     : %s\n", res.getUrl());
