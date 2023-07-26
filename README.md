@@ -1,5 +1,5 @@
 # GitLabSearch
-Simple java gitlab client that could search across gitlab projects content.
+Simple java gitlab client that could search across gitlab projects content, compatible with JDK 8 and above.
 
 Add Maven dependency for this project: 
 
