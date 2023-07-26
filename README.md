@@ -7,14 +7,14 @@ Add Maven dependency for this project:
 <dependency>
     <groupId>io.github.kiwionly</groupId>
     <artifactId>gitlab-search</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
 </dependency>
 ```
 
 For gradle :
 
 ```
-implementation 'io.github.kiwionly:gitlab-search:1.0.0'
+implementation 'io.github.kiwionly:gitlab-search:1.0.1'
 ```
 
 You could run the sample in the GitLabSearchTest.java, but it needs dependency as below: 
