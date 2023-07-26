@@ -3,6 +3,8 @@ plugins {
     id 'java'
 }
 
+sourceCompatibility = '8'
+
 group = 'io.github.kiwionly'
 version = '1.0.0'
 

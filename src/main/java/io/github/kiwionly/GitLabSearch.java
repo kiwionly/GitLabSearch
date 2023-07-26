@@ -93,7 +93,8 @@ public class GitLabSearch {
 
 	public List<SearchResult> searchByProjectId(Long projectId, String query) throws Exception {
 
-		List<Project> projects = List.of(gitLabApi.getProjectApi().getProject(projectId));
+		List<Project> projects = new ArrayList<>();
+		projects.add(gitLabApi.getProjectApi().getProject(projectId));
 
 		return search(projects, query);
 	}
@@ -140,7 +141,7 @@ public class GitLabSearch {
 
 		for (Project project : projects) {
 
-			futureList.add(executor.submit(new Callable<>() {
+			futureList.add(executor.submit(new Callable<List<SearchBlob>>() {
 
 				@Override
 				public List<SearchBlob> call() {
