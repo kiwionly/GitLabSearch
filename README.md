@@ -1,7 +1,13 @@
 # GitLabSearch
 Simple java gitlab client that could search across gitlab projects content, compatible with JDK 8 and above.
 
-Add Maven dependency for this project: 
+### Gradle
+
+```
+implementation 'io.github.kiwionly:gitlab-search:1.0.1'
+```
+
+### Maven
 
 ```
 <dependency>
@@ -10,12 +16,7 @@ Add Maven dependency for this project:
     <version>1.0.1</version>
 </dependency>
 ```
-
-For gradle :
-
-```
-implementation 'io.github.kiwionly:gitlab-search:1.0.1'
-```
+### Sample
 
 You could run the sample in the GitLabSearchTest.java, but it needs dependency as below: 
 

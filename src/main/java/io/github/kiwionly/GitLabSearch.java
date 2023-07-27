@@ -43,7 +43,6 @@ public class GitLabSearch {
 		gitLabApi.setIgnoreCertificateErrors(true);
 		gitLabApi.setRequestTimeout(null, 1000 * timeoutSeconds);
 
-		print("api version : %s", gitLabApi.getApiVersion());
 	}
 
 	private void check(String name, String input) {
@@ -53,7 +52,7 @@ public class GitLabSearch {
 		}
 	}
 
-	private void print(String format, Object... args) {
+	public void print(String format, Object... args) {
 		print(false, format, args);
 	}
 
@@ -167,7 +166,7 @@ public class GitLabSearch {
 
 					} catch (GitLabApiException ex) {
 
-						print(true, "Fail to search project : %-30s url:	%s/api/v4/projects/%s/search?scope=blobs&search=%s",
+						print(true, "%-30s	<- Fail to search project, retry url:	%s/api/v4/projects/%s/search?scope=blobs&search=%s",
 								project.getName(), url, project.getId(), q);
 
 						return list;
@@ -177,6 +176,8 @@ public class GitLabSearch {
 
 			}));
 		}
+
+		print("api version : %s", gitLabApi.getApiVersion());
 
 		print("Searching in %d projects ...\n", projects.size());
 
@@ -193,7 +194,7 @@ public class GitLabSearch {
 
 		long end = System.currentTimeMillis() - start;
 
-		print("\nDone search for projects, total took %dms\n", end);
+		print("\nDone search for %d projects, total time took %dms\n", projects.size(), end);
 
 		List<SearchResult> resultList = new ArrayList<>();
 
