@@ -5,7 +5,6 @@ import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.*;
@@ -63,7 +62,7 @@ public class GitLabSearch {
 		// Create an OkHttpClient that trusts all certificates
 		final OkHttpClient.Builder builder = new OkHttpClient.Builder();
 		builder.sslSocketFactory(sslContext.getSocketFactory(), (X509TrustManager) trustAllCerts[0]);
-//			builder.hostnameVerifier((hostname, session) -> true);
+
 		builder.callTimeout(timeOut, TimeUnit.SECONDS);
 		builder.connectTimeout(timeOut, TimeUnit.SECONDS);
 
