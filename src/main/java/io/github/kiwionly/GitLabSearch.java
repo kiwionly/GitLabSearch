@@ -1,53 +1,137 @@
-
 package io.github.kiwionly;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
 
-import org.gitlab4j.api.Constants.ProjectSearchScope;
-import org.gitlab4j.api.GitLabApi;
-import org.gitlab4j.api.GitLabApiException;
-import org.gitlab4j.api.models.Project;
-import org.gitlab4j.api.models.SearchBlob;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 
-/**
- * Simple GitLab Search, use async pool to search across gitlab projects content.
- * <br/><br/>
- * See Unit Test case for usage
- */
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+
 public class GitLabSearch {
 
-	private final GitLabApi gitLabApi;
+	private final OkHttpClient client;
 	private final String url;
+	private final String token;
 
-	private int poolSize = 10;
 	private boolean verbose = true;
 
-	public GitLabSearch(String token, int timeoutSeconds) {
-		this("https://www.gitlab.com", token, timeoutSeconds);
-	}
+	private int poolSize = 10;
 
-	public GitLabSearch(String url, String token, int timeoutSeconds) {
+	public GitLabSearch(String url, String token, int timeOut) throws Exception {
 
 		this.url = url;
+		this.token = token;
 
-		check("url", url);
-		check("token", token);
+		this.client = createUnsafeOkHttpClient(timeOut);
+	}
 
-		gitLabApi = new GitLabApi(url, token);
-		gitLabApi.setIgnoreCertificateErrors(true);
-		gitLabApi.setRequestTimeout(null, 1000 * timeoutSeconds);
+	private OkHttpClient createUnsafeOkHttpClient(int timeOut) throws Exception {
 
+		// Create a trust manager that does not validate certificate chains
+		final TrustManager[] trustAllCerts = new TrustManager[]{
+
+				new X509TrustManager() {
+					@Override
+					public void checkClientTrusted(java.security.cert.X509Certificate[] chain, String authType) {
+					}
+
+					@Override
+					public void checkServerTrusted(java.security.cert.X509Certificate[] chain, String authType) {
+					}
+
+					@Override
+					public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+						return new java.security.cert.X509Certificate[]{};
+					}
+				}};
+
+		// Install the trust manager
+		final SSLContext sslContext = SSLContext.getInstance("SSL");
+		sslContext.init(null, trustAllCerts, new java.security.SecureRandom());
+
+		// Create an OkHttpClient that trusts all certificates
+		final OkHttpClient.Builder builder = new OkHttpClient.Builder();
+		builder.sslSocketFactory(sslContext.getSocketFactory(), (X509TrustManager) trustAllCerts[0]);
+//			builder.hostnameVerifier((hostname, session) -> true);
+		builder.callTimeout(timeOut, TimeUnit.SECONDS);
+		builder.connectTimeout(timeOut, TimeUnit.SECONDS);
+
+		return builder.build();
+
+	}
+
+	private <T> List<T> get(String url, Mapper<T> mapper) throws IOException {
+
+		Request request = new Request.Builder().url(url).addHeader("Authorization", "Bearer " + token).build();
+
+		Response response = client.newCall(request).execute();
+
+		if(!response.isSuccessful()) {
+			throw new IOException(response.message());
+		}
+
+		String data = response.body().string();
+
+		response.close();
+
+		JSONArray arr = JSON.parseArray(data);
+
+		List<T> list = new ArrayList<>();
+
+        for (Object o : arr) {
+
+            JSONObject obj = (JSONObject) o;
+
+            T t = mapper.map(obj);
+            list.add(t);
+        }
+
+		return list;
+	}
+
+	private interface Mapper<T> {
+		T map(JSONObject obj);
+	}
+
+	private static class ProjectMapper<T> implements Mapper<Project> {
+		@Override
+		public Project map(JSONObject obj) {
+
+			long id = obj.getLong("id");
+			String name = obj.getString("name");
+			String webUrl = obj.getString("web_url");
+
+			return new Project(id, name, webUrl);
+		}
+	}
+
+	private static class SearchBlobMapper implements Mapper<SearchBlob> {
+		@Override
+		public SearchBlob map(JSONObject obj) {
+
+			long id = obj.getLong("project_id");
+			String data = obj.getString("data");
+			String ref = obj.getString("ref");
+			String fileName = obj.getString("filename");
+
+			return new SearchBlob(id, data, ref, fileName);
+		}
 	}
 
 	private void check(String name, String input) {
 
-		if(input == null || input.trim().equals("")) {
+		if (input == null || input.trim().equals("")) {
 			throw new IllegalStateException(name + " cannot be null or empty");
 		}
 	}
@@ -58,7 +142,7 @@ public class GitLabSearch {
 
 	private void print(boolean error, String format, Object... args) {
 
-		if(!verbose) {
+		if (!verbose) {
 			return;
 		}
 
@@ -78,60 +162,132 @@ public class GitLabSearch {
 		this.poolSize = poolSize;
 	}
 
-	public List<SearchResult> searchByGroupIds(List<Long> groupIds, String query) throws Exception {
+	private List<Project> groupsProject(List<Long> groupIds) throws Exception {
+
+		ExecutorService executor = Executors.newFixedThreadPool(10);
+		List<Future<List<Project>>> futureList = new ArrayList<>();
 
 		List<Project> projects = new ArrayList<>();
 
-		for (Long id : groupIds) {
-			List<Project> list = gitLabApi.getGroupApi().getProjects(id); // cannot call in async
-			projects.addAll(list);
+		final int rows = 100;
+		int page = 0;
+
+		for (Long group : groupIds) {
+
+			futureList.add(executor.submit(new Callable<List<Project>>() {
+
+				int p = page;
+
+				@Override
+				public List<Project> call() throws Exception {
+
+					List<Project> list = new ArrayList<>();
+
+					while (true) {
+						p += 1;
+
+						String u = url + "/api/v4/groups/" + group + "/projects?per_page=" + rows + "&page=" + p;
+
+						print(u);
+
+						List<Project> res = get(u, new ProjectMapper<>());
+						list.addAll(res);
+
+						if (res.size() < 100) {
+							break;
+						}
+
+					}
+
+					return list;
+				}
+			}));
 		}
 
-		return search(projects, query);
+		for (Future<List<Project>> future : futureList) {
+			projects.addAll(future.get());
+		}
+
+		executor.shutdown();
+
+		return projects;
 	}
 
-	public List<SearchResult> searchByProjectId(Long projectId, String query) throws Exception {
+	@Deprecated
+	private List<Project> myProjects() throws Exception {
 
 		List<Project> projects = new ArrayList<>();
-		projects.add(gitLabApi.getProjectApi().getProject(projectId));
 
-		return search(projects, query);
+		final int rows = 100;
+		int page = 0;
+
+		while (true) {
+			page += 1;
+
+			String u = url + "/api/v4/projects?per_page=" + rows + "&page=" + page;
+
+			print(u);
+
+			List<Project> res = get(u, new ProjectMapper<>());
+			projects.addAll(res);
+
+			if (res.size() < 100) {
+				break;
+			}
+		}
+
+		return projects;
 	}
 
-	public List<SearchResult> searchWithKeyword(String search, String query) throws Exception {
+	private List<Project> searchProject(String query) throws Exception {
 
-		List<Project> projects = gitLabApi.getProjectApi().getProjects(search);
+		List<Project> projects = new ArrayList<>();
 
-		return search(projects, query);
+		final int rows = 100;
+		int page = 0;
+
+		while (true) {
+			page += 1;
+
+			String u = url + "/api/v4/search?scope=projects&search=" + query + "&per_page=" + rows + "&page=" + page;
+
+			print(u);
+
+			List<Project> res = get(u, new ProjectMapper<>());
+			projects.addAll(res);
+
+			if (res.size() < 100) {
+				break;
+			}
+		}
+
+		return projects;
 	}
 
-	public List<SearchResult> searchMyProjects(String query) throws Exception {
-
-		List<Project> projects = gitLabApi.getProjectApi().getMemberProjects();
-
-		return search(projects, query);
+	public List<SearchResult> searchByGroupIds(List<Long> groupIds, String keywords) throws Exception {
+		return search(groupsProject(groupIds), keywords);
 	}
 
-	private List<SearchResult> search(List<Project> projects, String query) throws Exception {
+	@Deprecated
+	public List<SearchResult> searchMyProject(String keywords) throws Exception {
+		return search(myProjects(), keywords);
+	}
 
-		check("query", query);
+	public List<SearchResult> searchByProject(String query, String keywords) throws Exception {
+		return search(searchProject(query), keywords);
+	}
 
-		if(projects.isEmpty()) {
-			print(true, "No projects found, nothing to search : " + query);
+	private List<SearchResult> search(List<Project> projects, String keywords) throws Exception {
+
+		check("keywords", keywords);
+
+		if (projects.isEmpty()) {
+			print(true, "No projects found, nothing to search : " + keywords);
 
 			return new ArrayList<>();
 		}
 
-
-		int len = 30;
-
-		for (Project project : projects) {
-			int length = project.getName().length();
-
-			if(length > len) {
-				len = length + 10;
-			}
-		}
+		int len = getLen(projects);
 
 		String pattern = "%-" + len + "s %-10s";
 
@@ -147,37 +303,34 @@ public class GitLabSearch {
 
 					List<SearchBlob> list = new ArrayList<>();
 
-					String q = query.replace(" ", "%20");
+					String q = keywords.replace(" ", "%20");
 
 					try {
 
 						long start = System.currentTimeMillis();
 
-						List<?> searchResult = gitLabApi.getSearchApi().projectSearch(project.getId(), ProjectSearchScope.BLOBS, q);
+						String searchUrl = url + "/api/v4/projects/" + project.getId() + "/search?scope=blobs&search=" + keywords;
+
+						List<SearchBlob> searchResult = get(searchUrl, new SearchBlobMapper());
 
 						print(pattern, project.getName(), System.currentTimeMillis() - start);
 
-						for (Object obj : searchResult) {
-							SearchBlob sb = (SearchBlob) obj;
-							list.add(sb);
-						}
+						list.addAll(searchResult);
 
 						return list;
 
-					} catch (GitLabApiException ex) {
-
-						print(true, "%-30s	<- Fail to search project, retry url:	%s/api/v4/projects/%s/search?scope=blobs&search=%s",
-								project.getName(), url, project.getId(), q);
+					} catch (Exception ex) {
+						print(true, "%-" + len + "s <- Fail to search project, retry url: %s/api/v4/projects/%s/search?scope=blobs&search=%s \terror:%s",
+								project.getName(), url, project.getId(), q, ex.getMessage());
 
 						return list;
 					}
-
 				}
 
 			}));
 		}
 
-		print("api version : %s", gitLabApi.getApiVersion());
+		print("api version : %s", "V4");
 
 		print("Searching in %d projects ...\n", projects.size());
 
@@ -202,7 +355,7 @@ public class GitLabSearch {
 
 			for (Project project : projects) {
 
-				if (project.getId().equals(searchBlob.getProjectId())) {
+				if (project.getId() == searchBlob.getProjectId()) {
 
 					String name = project.getName();
 					String data = searchBlob.getData();
@@ -219,7 +372,99 @@ public class GitLabSearch {
 		return resultList;
 	}
 
+	private static int getLen(List<Project> projects) {
+
+		int len = 30;
+
+		for (Project project : projects) {
+			int length = project.getName().length();
+
+			if (length > len) {
+				len = length + 10;
+			}
+		}
+		return len;
+	}
+
+	private static class SearchBlob {
+
+		private long projectId;
+		private String data;
+		private String ref;
+		private String filename;
+
+		public SearchBlob(long projectId, String data, String ref, String filename) {
+			this.projectId = projectId;
+			this.data = data;
+			this.ref = ref;
+			this.filename = filename;
+		}
+
+		public long getProjectId() {
+			return projectId;
+		}
+
+		public void setProjectId(long projectId) {
+			this.projectId = projectId;
+		}
+
+		public String getData() {
+			return data;
+		}
+
+		public void setData(String data) {
+			this.data = data;
+		}
+
+		public String getRef() {
+			return ref;
+		}
+
+		public void setRef(String ref) {
+			this.ref = ref;
+		}
+
+		public String getFilename() {
+			return filename;
+		}
+
+		public void setFilename(String filename) {
+			this.filename = filename;
+		}
+	}
+
+	private static class Project {
+
+		private final long id;
+		private final String name;
+		private final String webUrl;
+
+		public Project(long id, String name, String webUrl) {
+			this.id = id;
+			this.name = name;
+			this.webUrl = webUrl;
+		}
+
+		public long getId() {
+			return id;
+		}
+
+		public String getName() {
+			return name;
+		}
+
+		public String getWebUrl() {
+			return webUrl;
+		}
+
+		@Override
+		public String toString() {
+			return "Project [id=" + id + ", name=" + name + ", webUrl=" + webUrl + "]";
+		}
+	}
+
 	public static class SearchResult {
+
 		private final String name;
 		private final String url;
 		private final String data;
@@ -243,18 +488,16 @@ public class GitLabSearch {
 		}
 
 		@Override
-		public int hashCode() {
-			return Objects.hash(name);
+		public boolean equals(Object o) {
+			if (this == o) return true;
+			if (o == null || getClass() != o.getClass()) return false;
+			SearchResult that = (SearchResult) o;
+			return Objects.equals(name, that.name) && Objects.equals(url, that.url) && Objects.equals(data, that.data);
 		}
 
 		@Override
-		public boolean equals(Object obj) {
-			if (this == obj)
-				return true;
-			if ((obj == null) || (getClass() != obj.getClass()))
-				return false;
-			SearchResult other = (SearchResult) obj;
-			return Objects.equals(name, other.name);
+		public int hashCode() {
+			return Objects.hash(name, url, data);
 		}
 
 		@Override
@@ -263,6 +506,4 @@ public class GitLabSearch {
 		}
 
 	}
-
-
 }

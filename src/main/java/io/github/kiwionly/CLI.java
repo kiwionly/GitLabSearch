@@ -56,8 +56,8 @@ public class CLI implements Callable<Integer> {
         @Option(names = {"-g", "--groups"}, split = ",", description = "search by group id, separate multiple group in comma")
         private List<Long> groups = new ArrayList<>();
 
-        @Option(names = {"-p", "--project"}, description = "search by project id, use \"0\" for user's own projects")
-        private Long projectId = -1L;
+//        @Option(names = {"-p", "--project"}, description = "search by project id, use \"0\" for user's own projects")
+//        private Long projectId = -1L;
 
         @Option(names = {"-s", "--search"}, description = "search by project name in gitlab")
         private String search = "";
@@ -70,19 +70,19 @@ public class CLI implements Callable<Integer> {
             return  searcher.searchByGroupIds(searchDependent.groups, keywords);
         }
 
-        if(searchDependent.projectId == 0) {
-            searcher.print("Search my projects ...");
-            return searcher.searchMyProjects(keywords);
-        }
+//        if(searchDependent.projectId == 0) {
+//            searcher.print("Search my projects ...");
+//            return searcher.searchMyProjects(keywords);
+//        }
 
-        if(searchDependent.projectId > 0) {
-            searcher.print("Search in project id :" +  searchDependent.projectId);
-            return searcher.searchByProjectId(searchDependent.projectId, keywords);
-        }
+//        if(searchDependent.projectId > 0) {
+//            searcher.print("Search in project id :" +  searchDependent.projectId);
+//            return searcher.searchByProjectId(searchDependent.projectId, keywords);
+//        }
 
         if(!searchDependent.search.equals("")) {
             searcher.print("Search in project :" +  searchDependent.search);
-            return searcher.searchWithKeyword(searchDependent.search, keywords);
+            return searcher.searchByProject(searchDependent.search, keywords);
         }
 
         throw new IllegalStateException("no specific search method, check is optional args for search is valid");
@@ -153,6 +153,12 @@ public class CLI implements Callable<Integer> {
 
         String lower = data.toLowerCase();
         int index = lower.indexOf(query.toLowerCase());
+
+        // if data no search string
+        if (index < 0) {
+            return data;
+        }
+
         String original =  data.substring(index, index + query.length());
 
         return data.replaceAll("(?i)" + query, "@|red " + original + "|@");
