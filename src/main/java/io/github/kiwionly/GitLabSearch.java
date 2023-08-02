@@ -20,16 +20,16 @@ import okhttp3.Response;
 public class GitLabSearch {
 
 	private final OkHttpClient client;
-	private final String url;
+	private final String domain;
 	private final String token;
 
 	private boolean verbose = true;
 
 	private int poolSize = 10;
 
-	public GitLabSearch(String url, String token, int timeOut) throws Exception {
+	public GitLabSearch(String domain, String token, int timeOut) throws Exception {
 
-		this.url = url;
+		this.domain = domain;
 		this.token = token;
 
 		this.client = createUnsafeOkHttpClient(timeOut);
@@ -103,7 +103,7 @@ public class GitLabSearch {
 		T map(JSONObject obj);
 	}
 
-	private static class ProjectMapper<T> implements Mapper<Project> {
+	private static class ProjectMapper implements Mapper<Project> {
 		@Override
 		public Project map(JSONObject obj) {
 
@@ -161,6 +161,36 @@ public class GitLabSearch {
 		this.poolSize = poolSize;
 	}
 
+	private <T> List<T> continueFetch(String url, boolean isInQuery, Mapper<T> mapper) throws IOException {
+
+		List<T> list = new ArrayList<>();
+
+		final int rows = 100;
+		int page = 0;
+
+		while (true) {
+
+			page += 1;
+
+			String join = "?";
+
+			if(isInQuery) {
+				join = "&";
+			}
+
+			String fetchUrl = String.format("%s%spage=%d&per_page=%d", url, join, page, rows);
+
+			List<T> res = get(fetchUrl, mapper);
+			list.addAll(res);
+
+			if (res.size() < rows) {
+				break;
+			}
+		}
+
+		return list;
+	}
+
 	private List<Project> groupsProject(List<Long> groupIds) throws Exception {
 
 		ExecutorService executor = Executors.newFixedThreadPool(10);
@@ -168,37 +198,18 @@ public class GitLabSearch {
 
 		List<Project> projects = new ArrayList<>();
 
-		final int rows = 100;
-		int page = 0;
-
 		for (Long group : groupIds) {
 
 			futureList.add(executor.submit(new Callable<List<Project>>() {
 
-				int p = page;
-
 				@Override
 				public List<Project> call() throws Exception {
 
-					List<Project> list = new ArrayList<>();
+					String url = String.format("%s/api/v4/groups/%d/projects", domain, group);
 
-					while (true) {
-						p += 1;
+					List<Project> projects = continueFetch(url, false, new ProjectMapper());
 
-						String u = url + "/api/v4/groups/" + group + "/projects?per_page=" + rows + "&page=" + p;
-
-						print(u);
-
-						List<Project> res = get(u, new ProjectMapper<>());
-						list.addAll(res);
-
-						if (res.size() < 100) {
-							break;
-						}
-
-					}
-
-					return list;
+					return projects;
 				}
 			}));
 		}
@@ -215,50 +226,18 @@ public class GitLabSearch {
 	@Deprecated
 	private List<Project> myProjects() throws Exception {
 
-		List<Project> projects = new ArrayList<>();
+		String url = String.format("%s/api/v4/projects", domain);
 
-		final int rows = 100;
-		int page = 0;
-
-		while (true) {
-			page += 1;
-
-			String u = url + "/api/v4/projects?per_page=" + rows + "&page=" + page;
-
-			print(u);
-
-			List<Project> res = get(u, new ProjectMapper<>());
-			projects.addAll(res);
-
-			if (res.size() < 100) {
-				break;
-			}
-		}
+		List<Project> projects = continueFetch(url, false, new ProjectMapper());
 
 		return projects;
 	}
 
 	private List<Project> searchProject(String query) throws Exception {
 
-		List<Project> projects = new ArrayList<>();
+		String url = String.format("%s/api/v4/search?scope=projects&search=%s", domain, query);
 
-		final int rows = 100;
-		int page = 0;
-
-		while (true) {
-			page += 1;
-
-			String u = url + "/api/v4/search?scope=projects&search=" + query + "&per_page=" + rows + "&page=" + page;
-
-			print(u);
-
-			List<Project> res = get(u, new ProjectMapper<>());
-			projects.addAll(res);
-
-			if (res.size() < 100) {
-				break;
-			}
-		}
+		List<Project> projects = continueFetch(url, true, new ProjectMapper());
 
 		return projects;
 	}
@@ -308,9 +287,9 @@ public class GitLabSearch {
 
 						long start = System.currentTimeMillis();
 
-						String searchUrl = url + "/api/v4/projects/" + project.getId() + "/search?scope=blobs&search=" + keywords;
+						String url = domain + "/api/v4/projects/" + project.getId() + "/search?scope=blobs&search=" + keywords;
 
-						List<SearchBlob> searchResult = get(searchUrl, new SearchBlobMapper());
+						List<SearchBlob> searchResult = continueFetch(url, true, new SearchBlobMapper());
 
 						print(pattern, project.getName(), System.currentTimeMillis() - start);
 
@@ -320,7 +299,7 @@ public class GitLabSearch {
 
 					} catch (Exception ex) {
 						print(true, "%-" + len + "s <- Fail to search project, retry url: %s/api/v4/projects/%s/search?scope=blobs&search=%s \terror:%s",
-								project.getName(), url, project.getId(), q, ex.getMessage());
+								project.getName(), domain, project.getId(), q, ex.getMessage());
 
 						return list;
 					}
