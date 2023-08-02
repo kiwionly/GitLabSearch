@@ -5,7 +5,7 @@ plugins {
     id 'org.graalvm.buildtools.native' version '0.9.23'
 }
 
-apply from: 'publish.gradle'
+//apply from: 'publish.gradle'
 
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
