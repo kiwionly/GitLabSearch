@@ -8,7 +8,7 @@ You can use it as library or command.
 #### Gradle
 
 ```groovy
-implementation 'io.github.kiwionly:gitlab-search:1.0.1'
+implementation 'io.github.kiwionly:gitlab-search:1.1.1'
 ```
 
 #### Maven
@@ -17,7 +17,7 @@ implementation 'io.github.kiwionly:gitlab-search:1.0.1'
 <dependency>
     <groupId>io.github.kiwionly</groupId>
     <artifactId>gitlab-search</artifactId>
-    <version>1.1.0</version>
+    <version>1.1.1</version>
 </dependency>
 ```
 
@@ -48,7 +48,7 @@ For searching in gitlab repositories
 ```
 
 
-### Compile to native image ( .exe ) using Graalvm
+### Compile to native image ( become .exe file ) using Graalvm
 
 Install GraalVM and Visual studio on the build machine, select C++ development tool and Windows SDK when install Visual Studio.
 

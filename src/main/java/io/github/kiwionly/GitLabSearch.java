@@ -64,7 +64,7 @@ public class GitLabSearch {
 		builder.sslSocketFactory(sslContext.getSocketFactory(), (X509TrustManager) trustAllCerts[0]);
 
 		builder.callTimeout(timeOut, TimeUnit.SECONDS);
-		builder.connectTimeout(timeOut, TimeUnit.SECONDS);
+		builder.connectTimeout(180, TimeUnit.SECONDS);
 
 		return builder.build();
 
