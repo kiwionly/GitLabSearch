@@ -322,7 +322,7 @@ public class GitLabSearch {
 		headers.put("project", "%-" + getLen(projects) + "s");
 		headers.put("took (ms)", "%-15s");
 		headers.put("result", "%-10s");
-		headers.put("debug url", "%-100s");
+		headers.put("debug url", "%-110s");
 		headers.put("error", "%-20s");
 
 		String pattern = getPattern(headers);
@@ -340,6 +340,9 @@ public class GitLabSearch {
 					long start = System.currentTimeMillis();
 
 					SearchResult sr = new SearchResult();
+					sr.setId(project.getId());
+					sr.setName(project.getName());
+
 					String q = keywords.replace(" ", "%20");
 
 					try {
@@ -348,9 +351,6 @@ public class GitLabSearch {
 
 						List<SearchBlob> list = continueFetch(url, true, new SearchBlobMapper());
 						sr.setSearchBlobList(list);
-
-						sr.setId(project.getId());
-						sr.setName(project.getName());
 						sr.setCount(list.size());
 
 					} catch (Exception ex) {
