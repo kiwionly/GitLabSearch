@@ -354,10 +354,8 @@ public class GitLabSearch {
 						sr.setCount(list.size());
 
 					} catch (Exception ex) {
-//						print(true, "%-" + len + "s <- Fail to search project, retry url:  \terror:%s",
-//								project.getName(), domain, project.getId(), q, ex.getMessage());
 
-						String url = String.format("%s/api/v4/projects/%s/search?scope=blobs&search=%s", project.getId(), q, ex.getMessage());
+						String url = String.format("%s/api/v4/projects/%s/search?scope=blobs&search=%s", domain, project.getId(), q);
 
 						sr.setDebugUrl(url);
 						sr.setError(ex.getMessage());
