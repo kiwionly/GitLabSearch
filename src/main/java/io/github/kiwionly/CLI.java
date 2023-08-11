@@ -1,5 +1,7 @@
 package io.github.kiwionly;
 
+import io.github.kiwionly.model.Result;
+import io.github.kiwionly.model.SearchResult;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 
@@ -53,21 +55,29 @@ public class CLI implements Callable<Integer> {
     Dependent searchDependent;
 
     static class Dependent {
-        @Option(names = {"-g", "--groups"}, split = ",", description = "search by group id, separate multiple group in comma")
-        private List<Long> groups = new ArrayList<>();
+        @Option(names = {"-g", "--groups"}, split = ",", description = "search by group id, separate multiple id in comma")
+        private List<Long> groupIds = new ArrayList<>();
 
 //        @Option(names = {"-p", "--project"}, description = "search by project id, use \"0\" for user's own projects")
 //        private Long projectId = -1L;
+
+        @Option(names = {"-p", "--projects"}, split = ",", description = "search by project ids, s, separate multiple id in comma")
+        private List<Long> projectIds = new ArrayList<>();
 
         @Option(names = {"-s", "--search"}, description = "search by project name in gitlab")
         private String search = "";
     }
 
-    private List<GitLabSearch.SearchResult> search(GitLabSearch searcher) throws Exception {
+    private List<SearchResult> search(GitLabSearch searcher) throws Exception {
 
-        if(!searchDependent.groups.isEmpty() ) {
-            searcher.print("Search in groups :" +  searchDependent.groups);
-            return  searcher.searchByGroupIds(searchDependent.groups, keywords);
+        if(!searchDependent.groupIds.isEmpty() ) {
+            searcher.print("Search in group ids :" +  searchDependent.groupIds);
+            return  searcher.searchByGroupIds(searchDependent.groupIds, keywords);
+        }
+
+        if(!searchDependent.projectIds.isEmpty() ) {
+            searcher.print("Search in project ids :" +  searchDependent.projectIds);
+            return  searcher.searchByProjectIds(searchDependent.projectIds, keywords);
         }
 
 //        if(searchDependent.projectId == 0) {
@@ -99,17 +109,31 @@ public class CLI implements Callable<Integer> {
         gitLabSearch.setVerbose(verbose);
         gitLabSearch.setPoolSize(poolSize);
 
-        List<GitLabSearch.SearchResult> list = search(gitLabSearch);
+        System.out.printf("api version : %s\n", ansi().fgBrightCyan().a(gitLabSearch.getVersion()).reset());
+
+        long start = System.currentTimeMillis();
+
+        List<SearchResult> list = search(gitLabSearch);
 
         System.out.printf("Found %s results :\n\n", ansi().fgBrightBlue().a(list.size()).reset());
 
-        for (GitLabSearch.SearchResult res : list) {
-            System.out.printf("project : %s\n", ansi().fgMagenta().a(res.getName()).reset());
-            System.out.printf("url     : %s\n", res.getUrl());
-            System.out.printf("data    : %s\n", ansi().render(getHighlightedData(res.getData(), keywords)));
+        int count = 0;
 
-            System.out.println();
+        for (SearchResult sr : list) {
+
+            count += sr.getResultList().size();
+
+            for (Result res : sr.getResultList()) {
+                System.out.printf("project : %s\n", ansi().fgMagenta().a(res.getName()).reset());
+                System.out.printf("url     : %s\n", res.getUrl());
+                System.out.printf("data    : %s\n", ansi().render(getHighlightedData(res.getData(), keywords)));
+
+                System.out.println();
+            }
         }
+
+        System.out.printf("search result(s) = %d\n", count);
+        System.out.printf("total time used  = %s ms\n", System.currentTimeMillis() - start);
 
         return 0;
     }

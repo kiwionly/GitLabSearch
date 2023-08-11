@@ -5,17 +5,23 @@ import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Objects;
+import java.util.Map;
 import java.util.concurrent.*;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 
+import io.github.kiwionly.model.Project;
+import io.github.kiwionly.model.Result;
+import io.github.kiwionly.model.SearchBlob;
+import io.github.kiwionly.model.SearchResult;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import org.jetbrains.annotations.NotNull;
 
 public class GitLabSearch {
 
@@ -70,19 +76,9 @@ public class GitLabSearch {
 
 	}
 
-	private <T> List<T> get(String url, Mapper<T> mapper) throws IOException {
+	private <T> List<T> getWithMapper(String url, Mapper<T> mapper) throws IOException {
 
-		Request request = new Request.Builder().url(url).addHeader("Authorization", "Bearer " + token).build();
-
-		Response response = client.newCall(request).execute();
-
-		if(!response.isSuccessful()) {
-			throw new IOException(response.message());
-		}
-
-		String data = response.body().string();
-
-		response.close();
+		String data = httpGet(url);
 
 		JSONArray arr = JSON.parseArray(data);
 
@@ -97,6 +93,24 @@ public class GitLabSearch {
         }
 
 		return list;
+	}
+
+	@NotNull
+	private String httpGet(String url) throws IOException {
+
+		Request request = new Request.Builder().url(url).addHeader("Authorization", "Bearer " + token).build();
+
+		Response response = client.newCall(request).execute();
+
+		if(!response.isSuccessful()) {
+			throw new IOException(response.message());
+		}
+
+		String data = response.body().string();
+
+		response.close();
+
+		return data;
 	}
 
 	private interface Mapper<T> {
@@ -128,25 +142,10 @@ public class GitLabSearch {
 		}
 	}
 
-	private void check(String name, String input) {
-
-		if (input == null || input.trim().equals("")) {
-			throw new IllegalStateException(name + " cannot be null or empty");
-		}
-	}
 
 	public void print(String format, Object... args) {
-		print(false, format, args);
-	}
-
-	private void print(boolean error, String format, Object... args) {
 
 		if (!verbose) {
-			return;
-		}
-
-		if (error) {
-			System.err.printf(format + "\n", args);
 			return;
 		}
 
@@ -180,7 +179,7 @@ public class GitLabSearch {
 
 			String fetchUrl = String.format("%s%spage=%d&per_page=%d", url, join, page, rows);
 
-			List<T> res = get(fetchUrl, mapper);
+			List<T> res = getWithMapper(fetchUrl, mapper);
 			list.addAll(res);
 
 			if (res.size() < rows) {
@@ -191,9 +190,9 @@ public class GitLabSearch {
 		return list;
 	}
 
-	private List<Project> groupsProject(List<Long> groupIds) throws Exception {
+	private List<Project> groupsProject(List<Long> groupIds) {
 
-		ExecutorService executor = Executors.newFixedThreadPool(10);
+		ExecutorService executor = Executors.newFixedThreadPool(groupIds.size());
 		List<Future<List<Project>>> futureList = new ArrayList<>();
 
 		List<Project> projects = new ArrayList<>();
@@ -215,7 +214,52 @@ public class GitLabSearch {
 		}
 
 		for (Future<List<Project>> future : futureList) {
-			projects.addAll(future.get());
+			try {
+				projects.addAll(future.get());
+			}
+			catch(Exception ex){
+				System.err.println(ex.getMessage());
+			}
+		}
+
+		executor.shutdown();
+
+		return projects;
+	}
+
+	private List<Project> projects(List<Long> projectIds) {
+
+		ExecutorService executor = Executors.newFixedThreadPool(projectIds.size());
+		List<Future<Project>> futureList = new ArrayList<>();
+
+		List<Project> projects = new ArrayList<>();
+
+		for (Long id : projectIds) {
+
+			futureList.add(executor.submit(new Callable<Project>() {
+
+				@Override
+				public Project call() throws Exception {
+
+					String url = String.format("%s/api/v4/projects/%d", domain, id);
+
+					String json = httpGet(url);
+					JSONObject obj = JSON.parseObject(json);
+
+					Project project = new ProjectMapper().map(obj);
+
+					return project;
+				}
+			}));
+		}
+
+		for (Future<Project> future : futureList) {
+			try {
+				projects.add(future.get());
+			}
+			catch(Exception ex) {
+				System.err.println(ex.getMessage());
+			}
 		}
 
 		executor.shutdown();
@@ -246,6 +290,10 @@ public class GitLabSearch {
 		return search(groupsProject(groupIds), keywords);
 	}
 
+	public List<SearchResult> searchByProjectIds(List<Long> projectIds, String keywords) throws Exception {
+		return search(projects(projectIds), keywords);
+	}
+
 	@Deprecated
 	public List<SearchResult> searchMyProject(String keywords) throws Exception {
 		return search(myProjects(), keywords);
@@ -255,99 +303,152 @@ public class GitLabSearch {
 		return search(searchProject(query), keywords);
 	}
 
-	private List<SearchResult> search(List<Project> projects, String keywords) throws Exception {
+	public String getVersion() {
+		return "V4";
+	}
 
-		check("keywords", keywords);
+	private List<SearchResult> search(List<Project> projects, String keywords) {
 
-		if (projects.isEmpty()) {
-			print(true, "No projects found, nothing to search : " + keywords);
-
-			return new ArrayList<>();
+		if (keywords == null || keywords.trim().equals("")) {
+			throw new IllegalStateException("keywords cannot be null or empty");
 		}
 
-		int len = getLen(projects);
+		if (projects.isEmpty()) {
+			throw new IllegalStateException("No projects found, nothing to search : " + keywords);
+		}
 
-		String pattern = "%-" + len + "s %-10s";
+		Map<String, String> headers = new LinkedHashMap<>();
+		headers.put("id", "%-10s");
+		headers.put("project", "%-" + getLen(projects) + "s");
+		headers.put("took (ms)", "%-15s");
+		headers.put("result", "%-10s");
+		headers.put("debug url", "%-100s");
+		headers.put("error", "%-20s");
+
+		String pattern = getPattern(headers);
 
 		ExecutorService executor = Executors.newFixedThreadPool(poolSize);
-		List<Future<List<SearchBlob>>> futureList = new ArrayList<>();
+		List<Future<SearchResult>> futureList = new ArrayList<>();
 
 		for (Project project : projects) {
 
-			futureList.add(executor.submit(new Callable<List<SearchBlob>>() {
+			futureList.add(executor.submit(new Callable<SearchResult>() {
 
 				@Override
-				public List<SearchBlob> call() {
+				public SearchResult call() {
 
-					List<SearchBlob> list = new ArrayList<>();
+					long start = System.currentTimeMillis();
 
+					SearchResult sr = new SearchResult();
 					String q = keywords.replace(" ", "%20");
 
 					try {
 
-						long start = System.currentTimeMillis();
+						String url = domain + "/api/v4/projects/" + project.getId() + "/search?scope=blobs&search=" + q;
 
-						String url = domain + "/api/v4/projects/" + project.getId() + "/search?scope=blobs&search=" + keywords;
+						List<SearchBlob> list = continueFetch(url, true, new SearchBlobMapper());
+						sr.setSearchBlobList(list);
 
-						List<SearchBlob> searchResult = continueFetch(url, true, new SearchBlobMapper());
-
-						print(pattern, project.getName(), System.currentTimeMillis() - start);
-
-						list.addAll(searchResult);
-
-						return list;
+						sr.setId(project.getId());
+						sr.setName(project.getName());
+						sr.setCount(list.size());
 
 					} catch (Exception ex) {
-						print(true, "%-" + len + "s <- Fail to search project, retry url: %s/api/v4/projects/%s/search?scope=blobs&search=%s \terror:%s",
-								project.getName(), domain, project.getId(), q, ex.getMessage());
+//						print(true, "%-" + len + "s <- Fail to search project, retry url:  \terror:%s",
+//								project.getName(), domain, project.getId(), q, ex.getMessage());
 
-						return list;
+						String url = String.format("%s/api/v4/projects/%s/search?scope=blobs&search=%s", project.getId(), q, ex.getMessage());
+
+						sr.setDebugUrl(url);
+						sr.setError(ex.getMessage());
+						sr.setCount(-1);
 					}
+
+					print(pattern, sr.getId(), sr.getName(), System.currentTimeMillis() - start, sr.getCount(), sr.getDebugUrl(), sr.getError());
+
+					return sr;
 				}
 
 			}));
 		}
 
-		print("api version : %s", "V4");
-
 		print("Searching in %d projects ...\n", projects.size());
 
-		print(pattern, "Project", "took (ms)");
-		print(pattern, "-------", "---------");
+		print(pattern, getHeaders(headers, false).toArray());
+		print(pattern, getHeaders(headers, true).toArray());
 
-		List<SearchBlob> result = new ArrayList<>();
+		List<SearchResult> searchResultList = new ArrayList<>();
 
 		long start = System.currentTimeMillis();
 
-		for (Future<List<SearchBlob>> future : futureList) {
-			result.addAll(future.get());
+		for (Future<SearchResult> future : futureList) {
+			try {
+				searchResultList.add(future.get());
+			}
+			catch(Exception ex){
+				System.err.println(ex.getMessage());
+			}
 		}
 
 		long end = System.currentTimeMillis() - start;
 
 		print("\nDone search for %d projects, total time took %dms\n", projects.size(), end);
 
-		List<SearchResult> resultList = new ArrayList<>();
 
-		for (SearchBlob searchBlob : result) {
-
+		for (SearchResult sr : searchResultList) {
 			for (Project project : projects) {
 
-				if (project.getId() == searchBlob.getProjectId()) {
+				if (project.getId() == sr.getId()) {
 
-					String name = project.getName();
-					String data = searchBlob.getData();
-					String url = String.format("%s/-/blob/%s/%s", project.getWebUrl(), searchBlob.getRef(), searchBlob.getFilename());
+					List<Result> rList = new ArrayList<>();
 
-					SearchResult sr = new SearchResult(name, url, data);
-					resultList.add(sr);
+					for(SearchBlob searchBlob :sr.getSearchBlobList())
+					{
+						String name = project.getName();
+						String data = searchBlob.getData();
+						String url = String.format("%s/-/blob/%s/%s", project.getWebUrl(), searchBlob.getRef(), searchBlob.getFilename());
+
+						Result rs = new Result(name, url, data);
+						rList.add(rs);
+					}
+
+					sr.setResultList(rList);
 				}
 			}
 		}
 
 		executor.shutdown();
 
-		return resultList;
+		return searchResultList;
+	}
+
+	private String getPattern(Map<String, String> headers) {
+
+		StringBuilder pattern = new StringBuilder();
+
+		for (String key: headers.keySet()) {
+			pattern.append(headers.get(key));
+		}
+
+		return pattern.toString();
+	}
+
+	private List<String> getHeaders(Map<String, String> headers, boolean padding) {
+
+		List<String> list = new ArrayList<>();
+
+		for (String key: headers.keySet()) {
+
+			if(padding) {
+				String pad = key.replaceAll(".", "-");
+				list.add(pad);
+			}
+			else {
+				list.add(key);
+			}
+		}
+
+		return list;
 	}
 
 	private static int getLen(List<Project> projects) {
@@ -364,124 +465,9 @@ public class GitLabSearch {
 		return len;
 	}
 
-	private static class SearchBlob {
 
-		private long projectId;
-		private String data;
-		private String ref;
-		private String filename;
 
-		public SearchBlob(long projectId, String data, String ref, String filename) {
-			this.projectId = projectId;
-			this.data = data;
-			this.ref = ref;
-			this.filename = filename;
-		}
 
-		public long getProjectId() {
-			return projectId;
-		}
 
-		public void setProjectId(long projectId) {
-			this.projectId = projectId;
-		}
 
-		public String getData() {
-			return data;
-		}
-
-		public void setData(String data) {
-			this.data = data;
-		}
-
-		public String getRef() {
-			return ref;
-		}
-
-		public void setRef(String ref) {
-			this.ref = ref;
-		}
-
-		public String getFilename() {
-			return filename;
-		}
-
-		public void setFilename(String filename) {
-			this.filename = filename;
-		}
-	}
-
-	private static class Project {
-
-		private final long id;
-		private final String name;
-		private final String webUrl;
-
-		public Project(long id, String name, String webUrl) {
-			this.id = id;
-			this.name = name;
-			this.webUrl = webUrl;
-		}
-
-		public long getId() {
-			return id;
-		}
-
-		public String getName() {
-			return name;
-		}
-
-		public String getWebUrl() {
-			return webUrl;
-		}
-
-		@Override
-		public String toString() {
-			return "Project [id=" + id + ", name=" + name + ", webUrl=" + webUrl + "]";
-		}
-	}
-
-	public static class SearchResult {
-
-		private final String name;
-		private final String url;
-		private final String data;
-
-		public SearchResult(String name, String url, String data) {
-			this.name = name;
-			this.url = url;
-			this.data = data;
-		}
-
-		public String getName() {
-			return name;
-		}
-
-		public String getData() {
-			return data;
-		}
-
-		public String getUrl() {
-			return url.replace(" ", "%20");
-		}
-
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) return true;
-			if (o == null || getClass() != o.getClass()) return false;
-			SearchResult that = (SearchResult) o;
-			return Objects.equals(name, that.name) && Objects.equals(url, that.url) && Objects.equals(data, that.data);
-		}
-
-		@Override
-		public int hashCode() {
-			return Objects.hash(name, url, data);
-		}
-
-		@Override
-		public String toString() {
-			return "SearchResult [name=" + name + ", url=" + url + ", data=" + data + "]";
-		}
-
-	}
 }
