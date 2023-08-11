@@ -25,28 +25,31 @@ implementation 'io.github.kiwionly:gitlab-search:1.1.1'
 
 You could run as jar or compile to native image ( GitLabSearch.exe ) and run as command :
 
-```sh
-Usage: GitLabSearch [-hvV] [-n=<poolSize>] [-o=<timeout>] -q=<keywords>
-                    [-t=<token>] [-u=<url>] (-g=<groups>[,<groups>...]
-                    [-g=<groups>[,<groups>...]]... | -p=<projectId> |
-                    -s=<search>)
-For searching in gitlab repositories
-  -g, --groups=<groups>[,<groups>...]
-                            search by group id, separate multiple group in comma
-  -h, --help                Show this help message and exit.
-  -n, --poolSize=<poolSize> pool size for search in difference projects
-  -o, --timeout=<timeout>   timeout in seconds, default : 30 seconds
-  -p, --project=<projectId> search by project id, use "0" for user's own
-                              projects
-  -q, --query=<keywords>    keywords to match
-  -s, --search=<search>     search by project name in gitlab
-  -t, --token=<token>       api token
-  -u, --url=<url>           domain url
-  -v, --verbose             verbose more information to screen
-  -V, --version             Print version information and exit.
+Here is an example of search projects by name:
 
+```sh
+go-gitlabsearch projects -p <you_project_name> -q <search_term> -v -u <gitlab_url> -t <api_token>
 ```
 
+or ids
+
+```sh
+go-gitlabsearch projects -i <id1,id2> -q <search_term> -v -u <gitlab_url> -t <api_token>
+```
+
+
+Or you could search projects by groups:
+```sh
+go-gitlabsearch groups -g <group1,group2> -q <search_term> -v -u <gitlab_url> -t <api_token>
+```
+
+After specific the url and token and run for the first time, it will store in `.gitlab-search` file and will retrieve the url and token in future when running again the command.
+
+Search by groups:
+
+```sh
+gitlab-search groups -g <group1,group2> -q <search_term> -v
+```
 
 ### Compile to native image ( become .exe file ) using Graalvm
 

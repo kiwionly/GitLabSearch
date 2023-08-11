@@ -463,9 +463,4 @@ public class GitLabSearch {
 		return len;
 	}
 
-
-
-
-
-
 }
