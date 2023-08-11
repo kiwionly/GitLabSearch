@@ -24,7 +24,7 @@ public class CLI implements Callable<Integer> {
 
     // required
 
-    @Option(names = {"-q", "--query"}, description = "keywords to match", required = true)
+    @Option(names = {"-q", "--query"}, description = "keywords to match")
     private String keywords;
 
 
@@ -190,7 +190,15 @@ public class CLI implements Callable<Integer> {
 
 
     public static void main(String[] args) {
-        int exitCode = new CommandLine(new CLI()).execute(args);
+
+        CommandLine cmd = new CommandLine(new CLI());
+
+        if(args.length <= 0) {
+            cmd.usage(System.out);
+            return;
+        }
+
+        int exitCode = cmd.execute(args);
         System.exit(exitCode);
     }
 
