@@ -8,7 +8,7 @@ You can use it as library or command.
 #### Gradle
 
 ```groovy
-implementation 'io.github.kiwionly:gitlab-search:1.1.1'
+implementation 'io.github.kiwionly:gitlab-search:1.2.0'
 ```
 
 #### Maven
@@ -17,7 +17,7 @@ implementation 'io.github.kiwionly:gitlab-search:1.1.1'
 <dependency>
     <groupId>io.github.kiwionly</groupId>
     <artifactId>gitlab-search</artifactId>
-    <version>1.1.1</version>
+    <version>1.2.0</version>
 </dependency>
 ```
 
