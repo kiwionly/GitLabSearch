@@ -8,7 +8,7 @@ You can use it as library or command.
 #### Gradle
 
 ```groovy
-implementation 'io.github.kiwionly:gitlab-search:1.2.0'
+implementation 'io.github.kiwionly:gitlab-search:1.3.0'
 ```
 
 #### Maven
@@ -17,7 +17,7 @@ implementation 'io.github.kiwionly:gitlab-search:1.2.0'
 <dependency>
     <groupId>io.github.kiwionly</groupId>
     <artifactId>gitlab-search</artifactId>
-    <version>1.2.0</version>
+    <version>1.3.0</version>
 </dependency>
 ```
 
@@ -79,19 +79,12 @@ searcher.setPoolSize(10);  // set before call search method, default 10,
 String query = "my search query"; // case insensitive
 
 //	List<SearchResult> list = searcher.searchByGroupIds(List.of(123L, 456L), query);
-List<SearchResult> list = searcher.searchWithKeyword("myproject", query);
+List<Result> list = searcher.searchWithKeyword("myproject", query);
 
-// print search result
-for (SearchResult sr : list) {
-								
-	for (Result res : sr.getResultList()) {
-		System.out.println(res.getName());
-		System.out.println(res.getUrl());
-		
-		for (SearchBlob sb : sr.getSearchBlobList()) {
-			System.out.println(sb.getData());
-		}
-	}
-	
-}	
+// print search result								
+for (Result res : list) {
+	System.out.println(res.getName());
+	System.out.println(res.getUrl());
+	System.out.println(res.getData());
+}
 ```
