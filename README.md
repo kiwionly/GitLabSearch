@@ -82,11 +82,16 @@ String query = "my search query"; // case insensitive
 List<SearchResult> list = searcher.searchWithKeyword("myproject", query);
 
 // print search result
-for (SearchResult res : list) {
-	System.out.printf("project : %s\n", res.getName());
-	System.out.printf("url     : %s\n", res.getUrl());
-	System.out.printf("data    : %s\n", res.getData());
-
-	System.out.println();
-}
+for (SearchResult sr : list) {
+								
+	for (Result res : sr.getResultList()) {
+		System.out.println(res.getName());
+		System.out.println(res.getUrl());
+		
+		for (SearchBlob sb : sr.getSearchBlobList()) {
+			System.out.println(sb.getData());
+		}
+	}
+	
+}	
 ```
