@@ -1,11 +1,10 @@
 
 plugins {
-    id 'java'
+    id 'java-library'
     id 'application'
-    id 'org.graalvm.buildtools.native' version '0.9.23'
+    id 'org.graalvm.buildtools.native' version '0.11.1'
+    id 'com.vanniktech.maven.publish' version '0.34.0'
 }
-
-//apply from: 'publish.gradle'
 
 java {
 	sourceCompatibility = 21
@@ -28,8 +27,8 @@ dependencies {
 
     implementation 'org.fusesource.jansi:jansi:2.4.2'
 
-    testImplementation platform('org.junit:junit-bom:5.9.1')
-    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.14.0'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 test {
@@ -46,16 +45,37 @@ application {
     mainClass = 'io.github.kiwionly.CLI'
 }
 
-graalvmNative {
-    binaries {
-        main {
-            buildArgs.add('--enable-url-protocols=http,https')
-            buildArgs.add('--report-unsupported-elements-at-runtime')
-            buildArgs.add('--verbose')
+
+mavenPublishing {
+
+	publishToMavenCentral()
+
+	signAllPublications()
+
+ 	coordinates("io.github.kiwionly", "gitlab-search", "1.2.0")
+
+    pom {
+        name = 'GitLabSearch'
+        description = 'Simple java client library for searching gitlab repositories content.'
+        url = 'https://github.com/kiwionly/GitLabSearch'
+
+        licenses {
+            license {
+                name = 'The MIT License'
+                url = 'https://github.com/kiwionly/GitLabSearch/blob/main/LICENSE.txt'
+            }
+        }
+        developers {
+            developer {
+                id = 'kiwionly'
+                name = 'kiwi'
+                email = 'kiwionly@gmail.com'
+            }
+        }
+        scm {
+            connection = 'https://github.com/kiwionly/GitLabSearch.git'
+            url = 'https://github.com/kiwionly/GitLabSearch'
         }
     }
+
 }
-
-
-apply from: 'publish.gradle'
-
