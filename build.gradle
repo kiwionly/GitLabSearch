@@ -8,11 +8,11 @@ plugins {
 //apply from: 'publish.gradle'
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
+	sourceCompatibility = 21
 }
 
 group = 'io.github.kiwionly'
-version = '1.1.1'
+version = '1.2.0'
 
 repositories {
     mavenCentral()
