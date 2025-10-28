@@ -3,9 +3,11 @@ package io.github.kiwionly.model;
 import java.util.Objects;
 
 public class Result {
+	
     private final String name;
     private final String url;
     private final String data;
+    
     public Result(String name, String url, String data) {
         this.name = name;
         this.url = url;

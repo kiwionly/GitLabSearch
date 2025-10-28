@@ -1,7 +1,6 @@
 package io.github.kiwionly;
 
 import io.github.kiwionly.model.Result;
-import io.github.kiwionly.model.SearchResult;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 
@@ -68,16 +67,16 @@ public class CLI implements Callable<Integer> {
         private String search = "";
     }
 
-    private List<SearchResult> search(GitLabSearch searcher) throws Exception {
+    private List<Result> search(GitLabSearch searcher) throws Exception {
 
         if(!searchDependent.groupIds.isEmpty() ) {
             searcher.print("Search in group ids :" +  searchDependent.groupIds);
-            return  searcher.searchByGroupIds(searchDependent.groupIds, keywords);
+            return searcher.searchByGroupIds(searchDependent.groupIds, keywords);
         }
 
         if(!searchDependent.projectIds.isEmpty() ) {
             searcher.print("Search in project ids :" +  searchDependent.projectIds);
-            return  searcher.searchByProjectIds(searchDependent.projectIds, keywords);
+            return searcher.searchByProjectIds(searchDependent.projectIds, keywords);
         }
 
 //        if(searchDependent.projectId == 0) {
@@ -113,26 +112,21 @@ public class CLI implements Callable<Integer> {
 
         long start = System.currentTimeMillis();
 
-        List<SearchResult> list = search(gitLabSearch);
+        List<Result> list = search(gitLabSearch);
 
         System.out.printf("Found %s results :\n\n", ansi().fgBrightBlue().a(list.size()).reset());
 
-        int count = 0;
+        for (Result res : list) {
+        
+            System.out.printf("project : %s\n", ansi().fgMagenta().a(res.getName()).reset());
+            System.out.printf("url     : %s\n", res.getUrl());
+            System.out.printf("data    : %s\n", ansi().render(getHighlightedData(res.getData(), keywords)));
 
-        for (SearchResult sr : list) {
-
-            count += sr.getResultList().size();
-
-            for (Result res : sr.getResultList()) {
-                System.out.printf("project : %s\n", ansi().fgMagenta().a(res.getName()).reset());
-                System.out.printf("url     : %s\n", res.getUrl());
-                System.out.printf("data    : %s\n", ansi().render(getHighlightedData(res.getData(), keywords)));
-
-                System.out.println();
-            }
+            System.out.println();
+            
         }
 
-        System.out.printf("search result(s) = %d\n", count);
+        System.out.printf("search result(s) = %d\n", list.size());
         System.out.printf("total time used  = %s ms\n", System.currentTimeMillis() - start);
 
         return 0;
@@ -189,7 +183,7 @@ public class CLI implements Callable<Integer> {
     }
 
 
-    public static void mainX(String[] args) {
+    public static void main(String[] args) {
 
         CommandLine cmd = new CommandLine(new CLI());
 
@@ -201,15 +195,7 @@ public class CLI implements Callable<Integer> {
         int exitCode = cmd.execute(args);
         System.exit(exitCode);
     }
-    
-    public static void main(String[] args) throws Exception {
-    	
-    	var domain = "https://seagit.okla.seagate.com";
-    	var token = "";
-    	
-    	GitLabSearch gls = new GitLabSearch(domain, token, 60);
-    }
-
+  
 }
 
 

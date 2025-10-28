@@ -294,20 +294,20 @@ public class GitLabSearch {
 		return projects;
 	}
 
-	public List<SearchResult> searchByGroupIds(List<Long> groupIds, String keywords) throws Exception {
+	public List<Result> searchByGroupIds(List<Long> groupIds, String keywords) throws Exception {
 		return search(groupsProject(groupIds), keywords);
 	}
 
-	public List<SearchResult> searchByProjectIds(List<Long> projectIds, String keywords) throws Exception {
+	public List<Result> searchByProjectIds(List<Long> projectIds, String keywords) throws Exception {
 		return search(projects(projectIds), keywords);
 	}
 
 	@Deprecated
-	public List<SearchResult> searchMyProject(String keywords) throws Exception {
+	public List<Result> searchMyProject(String keywords) throws Exception {
 		return search(myProjects(), keywords);
 	}
 
-	public List<SearchResult> searchByProject(String query, String keywords) throws Exception {
+	public List<Result> searchByProject(String query, String keywords) throws Exception {
 		return search(searchProject(query), keywords);
 	}
 
@@ -315,7 +315,7 @@ public class GitLabSearch {
 		return "V4";
 	}
 
-	private List<SearchResult> search(List<Project> projects, String keywords) {
+	private List<Result> search(List<Project> projects, String keywords) {
 
 		if (keywords == null || keywords.trim().equals("")) {
 			throw new IllegalStateException("keywords cannot be null or empty");
@@ -383,13 +383,29 @@ public class GitLabSearch {
 		print(pattern, getHeaders(headers, false).toArray());
 		print(pattern, getHeaders(headers, true).toArray());
 
-		List<SearchResult> searchResultList = new ArrayList<>();
+		List<Result> resList = new ArrayList<>();
 
 		long start = System.currentTimeMillis();
 
 		for (Future<SearchResult> future : futureList) {
 			try {
-				searchResultList.add(future.get());
+				SearchResult sr = future.get();
+				
+				for (Project project : projects) {
+
+					if (project.getId() == sr.getId()) {
+
+						for(SearchBlob searchBlob :sr.getSearchBlobList())
+						{
+							String name = project.getName();
+							String data = searchBlob.getData();
+							String url = String.format("%s/-/blob/%s/%s", project.getWebUrl(), searchBlob.getRef(), searchBlob.getFilename());
+
+							Result rs = new Result(name, url, data);
+							resList.add(rs);
+						}
+					}
+				}
 			}
 			catch(Exception ex){
 				System.err.println(ex.getMessage());
@@ -398,34 +414,11 @@ public class GitLabSearch {
 
 		long end = System.currentTimeMillis() - start;
 
+		executor.shutdown();
+		
 		print("\nDone search for %d projects, total time took %dms\n", projects.size(), end);
 
-
-		for (SearchResult sr : searchResultList) {
-			for (Project project : projects) {
-
-				if (project.getId() == sr.getId()) {
-
-					List<Result> rList = new ArrayList<>();
-
-					for(SearchBlob searchBlob :sr.getSearchBlobList())
-					{
-						String name = project.getName();
-						String data = searchBlob.getData();
-						String url = String.format("%s/-/blob/%s/%s", project.getWebUrl(), searchBlob.getRef(), searchBlob.getFilename());
-
-						Result rs = new Result(name, url, data);
-						rList.add(rs);
-					}
-
-					sr.setResultList(rList);
-				}
-			}
-		}
-
-		executor.shutdown();
-
-		return searchResultList;
+		return resList;
 	}
 
 	private String getPattern(Map<String, String> headers) {
