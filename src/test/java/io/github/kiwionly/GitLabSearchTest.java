@@ -8,7 +8,7 @@ class GitLabSearchTest {
 
 	@Test
 	public void testInitialFail() {
-		IllegalStateException exception = Assertions.assertThrows(IllegalStateException.class,
+		IllegalArgumentException exception = Assertions.assertThrows(IllegalArgumentException.class,
 				() -> new GitLabSearch("", "", 30)
 		);
 

@@ -10,9 +10,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONArray;
-import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONArray;
+import com.alibaba.fastjson2.JSONObject;
 
 import io.github.kiwionly.model.Project;
 import io.github.kiwionly.model.Result;
@@ -35,6 +35,14 @@ public class GitLabSearch {
 
 	public GitLabSearch(String domain, String token, int timeOut) throws Exception {
 
+		if(domain == null ||  domain.isBlank()) {
+			throw new IllegalArgumentException("url cannot be null or empty");
+		}
+		
+		if(token == null ||  token.isBlank()) {
+			throw new IllegalArgumentException("token cannot be null or empty");
+		}
+		
 		this.domain = domain;
 		this.token = token;
 

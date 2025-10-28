@@ -189,7 +189,7 @@ public class CLI implements Callable<Integer> {
     }
 
 
-    public static void main(String[] args) {
+    public static void mainX(String[] args) {
 
         CommandLine cmd = new CommandLine(new CLI());
 
@@ -200,6 +200,14 @@ public class CLI implements Callable<Integer> {
 
         int exitCode = cmd.execute(args);
         System.exit(exitCode);
+    }
+    
+    public static void main(String[] args) throws Exception {
+    	
+    	var domain = "https://seagit.okla.seagate.com";
+    	var token = "";
+    	
+    	GitLabSearch gls = new GitLabSearch(domain, token, 60);
     }
 
 }

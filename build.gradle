@@ -20,13 +20,13 @@ repositories {
 
 dependencies {
 
-    implementation 'com.squareup.okhttp3:okhttp:4.11.0'
-    implementation 'com.alibaba:fastjson:2.0.10'
+    implementation 'com.squareup.okhttp3:okhttp:5.2.1'
+    implementation 'com.alibaba.fastjson2:fastjson2:2.0.60'
 
-    implementation 'info.picocli:picocli:4.7.4'
-    annotationProcessor 'info.picocli:picocli-codegen:4.7.4'
+    implementation 'info.picocli:picocli:4.7.7'
+    implementation 'info.picocli:picocli-codegen:4.7.7'
 
-    implementation 'org.fusesource.jansi:jansi:2.4.0'
+    implementation 'org.fusesource.jansi:jansi:2.4.2'
 
     testImplementation platform('org.junit:junit-bom:5.9.1')
     testImplementation 'org.junit.jupiter:junit-jupiter'
@@ -57,5 +57,5 @@ graalvmNative {
 }
 
 
-
+apply from: 'publish.gradle'
 
