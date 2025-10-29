@@ -78,7 +78,7 @@ searcher.setPoolSize(10);  // set before call search method, default 10,
 
 String query = "my search query"; // case insensitive
 
-//	List<SearchResult> list = searcher.searchByGroupIds(List.of(123L, 456L), query);
+//	List<Result> list = searcher.searchByGroupIds(List.of(123L, 456L), query);
 List<Result> list = searcher.searchWithKeyword("myproject", query);
 
 // print search result								
